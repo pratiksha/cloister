@@ -16,11 +16,6 @@ class SecurityGroup:
                             'ToPort': 65535,
                             'IpRanges': [{'CidrIp': '0.0.0.0/0'}]}]
 
-    def __init__(self, client, name, d):
-        self.client = client
-        self.name = name
-        util.dict_to_obj(self, d)
-
     @staticmethod
     def get_or_create_group(client, name):
         groups = client.security_groups.all()
@@ -51,6 +46,3 @@ class SecurityGroup:
         sg.revoke_egress(
             GroupId=sg.group_id,
             IpPermissions=SecurityGroup.cluster_permissions)
-        
-    def destroy(self):
-        self.client.delete_security_group(GroupId=self.GroupId)

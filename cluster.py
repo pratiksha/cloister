@@ -2,6 +2,7 @@ import boto3 as boto
 
 import time
 
+import net_utils
 import util
 
 from instance import Instance
@@ -17,6 +18,10 @@ class Cluster:
         self.worker_sgroup = worker_sgroup
         self.name = name
 
+        Cluster.write_dns_names(self.master_nodes, 'master.txt')
+        Cluster.write_dns_names(self.master_nodes, 'manager.txt')
+        Cluster.write_dns_names(self.worker_nodes, 'servers.txt')
+        
     @staticmethod
     def run_instances(client, config, cluster_name, master=False):
         nworkers = 1
@@ -36,8 +41,38 @@ class Cluster:
                                           'ResourceType':'instance',
                                           'Tags':[{'Key':'Name', 'Value':group_name}]
                                       }])
+
+        # wait for instances to start up
+        states = ([x.state['Name'] for x in self.master_nodes + self.worker_nodes])
+        while any([x.state['Name'] != 'running'
+                   for x in instances]):
+            print([x.state for x in instances])
+            time.sleep(10)
+            [x.reload() for x in instances]
         return (sgroup, instances)
         
+    @staticmethod
+    def write_dns_names(instances, outfile):
+        open(outfile, 'w').close() # erases existing data
+        for i in instances:
+            # TODO check to make sure instance is running. For now, assume as precondition
+            with open(outfile, 'a') as f:
+                f.write(i.public_dns_name +'\n')
+
+
+    @staticmethod
+    def copy_dns_names(instances, conf):
+        for i in instances:
+            copy_file(instance, conf, ) 
+
+    @staticmethod
+    def copy_file(instance, conf, local_path, dest_path):
+        net_utils.scp(instance.public_dns_name, 
+                      conf.key_pair,
+                      conf.user,
+                      local_path,
+                      dest_path)
+            
     @staticmethod
     def create_new_cluster(client, config, cluster_name):
         (master_sgroup, master_nodes) = Cluster.run_instances(client, config, cluster_name, True)

@@ -19,16 +19,25 @@ def ssh(host, identity_file, user):
     subprocess.check_call("ssh -o StrictHostKeyChecking=no -i %s %s@%s" %
                           (identity_file, user, host), shell=True)
 
-def run_cmd(server_name, script):
+def run_cmd(server_name, script, local=False):
+  if local:
+    output = subprocess.check_output(cmd, shell=True)
+    return output
+  else:
     cmd = "ssh -A -o StrictHostKeyChecking=no -i %s ubuntu@%s 'bash -s' < %s" % (aws_key, server_name, script)
     output = subprocess.check_output(cmd, shell=True)
     return output
 
-def run_cmd_nonblock(server_name, script):
+def run_cmd_nonblock(server_name, script, local=False):
+  if local:
+    cmd = script
+    print(cmd)
+    subprocess.Popen(cmd, shell=True)
+  else:
     cmd = "ssh -A -o StrictHostKeyChecking=no -i %s ubuntu@%s 'bash -s' < %s" % (aws_key, server_name, script)
     print(cmd)
     subprocess.Popen(cmd, shell=True)
-    
+
 def read_ips(ip_fname):
     with open(ip_fname, 'r') as f:
         return [l.strip() for l in f.readlines()]

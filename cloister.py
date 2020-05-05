@@ -14,10 +14,7 @@ default_config_file = 'clamor_config_east.json'
 
 from net_utils import *
 
-def launch(nworkers):
-    pass
-
-def login(host, identity_file):
+def login(host, identity_file, user):
     ssh(host, identity_file, user)
 
 def main():
@@ -40,17 +37,20 @@ def main():
         print >> stderr, (e)
         sys.exit(1)
 
-    cluster = Cluster.get_cluster_if_exists(client, 'cloister-test')
-    if cluster is None:
-        cluster = Cluster.create_new_cluster(client, conf, 'cloister-test')
-
-    cluster.destroy()
-    
     if action == 'login':
-        login(master_name, conf.keypair)
+        login(master_name, conf.key_pair, conf.user)
     elif action == 'login-ami':
-        login(conf.ami_instance_ip, conf.keypair)
-
+        login(conf.ami_instance_ip, conf.key_pair, conf.user)
+    elif action == 'launch':
+        cluster = Cluster.get_cluster_if_exists(client, conf.cluster_name)
+        if cluster is None:
+            cluster = Cluster.create_new_cluster(client, conf, conf.cluster_name)
+    elif action == 'destroy':
+        cluster = Cluster.get_cluster_if_exists(client, conf.cluster_name)
+        if cluster is not None:
+            cluster.destroy()
+        else:
+            print('No cluster found')
         
 if __name__ == '__main__':
     main()

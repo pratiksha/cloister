@@ -26,7 +26,6 @@ def main():
         (action,) = args
         
     conf = CloisterConfig(read_config(default_config_file))
-    print(conf)
     
     server_names = read_ips(conf.servers_file)
     master_name = read_ips(conf.master_file)[0]
@@ -42,15 +41,19 @@ def main():
     elif action == 'login-ami':
         login(conf.ami_instance_ip, conf.key_pair, conf.user)
     elif action == 'launch':
-        cluster = Cluster.get_cluster_if_exists(client, conf.cluster_name)
+        cluster = Cluster.get_cluster_if_exists(client, conf, conf.cluster_name)
         if cluster is None:
             cluster = Cluster.create_new_cluster(client, conf, conf.cluster_name)
     elif action == 'destroy':
-        cluster = Cluster.get_cluster_if_exists(client, conf.cluster_name)
+        cluster = Cluster.get_cluster_if_exists(client, conf, conf.cluster_name)
         if cluster is not None:
             cluster.destroy()
         else:
             print('No cluster found')
+    elif action == 'copy-dns':
+        cluster = Cluster.get_cluster_if_exists(client, conf, conf.cluster_name) # creates cluster and copies names
+    else:
+        print('Invalid action: ' + action)
         
 if __name__ == '__main__':
     main()

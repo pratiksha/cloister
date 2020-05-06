@@ -10,17 +10,29 @@ from security_groups import SecurityGroup as SG
 
 class Cluster:
     def __init__(self, client, master_nodes, worker_nodes,
-                 master_sgroup, worker_sgroup, name):
+                 master_sgroup, worker_sgroup, name, conf):
         self.client = client
         self.master_nodes = master_nodes
         self.worker_nodes = worker_nodes
         self.master_sgroup = master_sgroup
         self.worker_sgroup = worker_sgroup
         self.name = name
+        self.conf = conf
 
-        Cluster.write_dns_names(self.master_nodes, 'master.txt')
-        Cluster.write_dns_names(self.master_nodes, 'manager.txt')
-        Cluster.write_dns_names(self.worker_nodes, 'servers.txt')
+        Cluster.write_dns_names(self.master_nodes, 'servers/master.txt')
+        Cluster.write_dns_names(self.master_nodes, 'servers/manager.txt')
+        Cluster.write_dns_names(self.worker_nodes, 'servers/servers.txt')
+
+        self.copy_all_dns_names()
+        
+    def copy_all_dns_names(self):
+        print('Copying master...')
+        Cluster.copy_dns_names(self.master_nodes, self.conf, 'servers/master.txt')
+        print('Copying manager...')
+        Cluster.copy_dns_names(self.master_nodes, self.conf, 'servers/manager.txt')
+        print('Copying servers...')
+        Cluster.copy_dns_names(self.worker_nodes, self.conf, 'servers/servers.txt')
+        print('...done.')
         
     @staticmethod
     def run_instances(client, config, cluster_name, master=False):
@@ -32,7 +44,7 @@ class Cluster:
 
         sgroup = SG.get_or_create_group(client, group_name)
         instances = client.create_instances(ImageId = config.ami,
-                                      KeyName = config.key_pair,
+                                      KeyName = config.identity_file,
                                       SecurityGroups = [group_name],
                                       InstanceType = config.instance_type,
                                       MinCount = nworkers,
@@ -43,9 +55,8 @@ class Cluster:
                                       }])
 
         # wait for instances to start up
-        states = ([x.state['Name'] for x in self.master_nodes + self.worker_nodes])
-        while any([x.state['Name'] != 'running'
-                   for x in instances]):
+        states = ([x.state['Name'] for x in instances])
+        while any([x.state['Name'] != 'running' for x in instances]):
             print([x.state for x in instances])
             time.sleep(10)
             [x.reload() for x in instances]
@@ -59,29 +70,20 @@ class Cluster:
             with open(outfile, 'a') as f:
                 f.write(i.public_dns_name +'\n')
 
-
     @staticmethod
-    def copy_dns_names(instances, conf):
+    def copy_dns_names(instances, conf, fname):
         for i in instances:
-            copy_file(instance, conf, ) 
-
-    @staticmethod
-    def copy_file(instance, conf, local_path, dest_path):
-        net_utils.scp(instance.public_dns_name, 
-                      conf.key_pair,
-                      conf.user,
-                      local_path,
-                      dest_path)
+            net_utils.copy_file(i, conf, fname, '~/cloister/' + fname) 
             
     @staticmethod
     def create_new_cluster(client, config, cluster_name):
         (master_sgroup, master_nodes) = Cluster.run_instances(client, config, cluster_name, True)
         (worker_sgroup, worker_nodes) = Cluster.run_instances(client, config, cluster_name, False)
         return Cluster(client, master_nodes, worker_nodes,
-                       master_sgroup, worker_sgroup, cluster_name)
+                       master_sgroup, worker_sgroup, cluster_name, config)
         
     @staticmethod
-    def get_cluster_if_exists(client, cluster_name):
+    def get_cluster_if_exists(client, config, cluster_name):
         print("Searching for existing cluster " + cluster_name + "...")
         instances = client.instances.all()
         master_nodes = []
@@ -89,19 +91,21 @@ class Cluster:
         master_sgroup = SG.get_or_create_group(client, util.master_group_name(cluster_name))
         worker_sgroup = SG.get_or_create_group(client, util.worker_group_name(cluster_name))
 
-        active_instances = filter(lambda x: x.state in Instance.active_states, instances)
+        print(list(x.state for x in instances))
+        active_instances = filter(lambda x: x.state['Name'] in Instance.active_states, instances)
         for i in active_instances:
-            group_name = i.security_groups[0].group_name
-            if group_name == master_sgroup.name:
+            print(i.security_groups)
+            group_names = [x['GroupName'] for x in i.security_groups]
+            if master_sgroup.group_name in group_names:
                 master_nodes.append(i)
-            elif group_name == worker_sgroup.name:
+            elif worker_sgroup.group_name in group_names:
                 worker_nodes.append(i)
         if any((master_nodes, worker_nodes)):
             print ("Found %d master(s), %d workers" %
                    (len(master_nodes), len(worker_nodes)))
         if (master_nodes != [] and worker_nodes != []):
             return Cluster(client, master_nodes, worker_nodes,
-                           master_sgroup, worker_sgroup, cluster_name)
+                           master_sgroup, worker_sgroup, cluster_name, config)
         else:
             if master_nodes == [] and worker_nodes != []:
                 print("ERROR: Could not find master in group " + cluster_name + "-master")

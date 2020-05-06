@@ -16,8 +16,8 @@ def scp(host, identity_file, user, local_file, dest_file):
       (identity_file, local_file, user, host, dest_file), shell=True)
 
 def ssh(host, identity_file, user):
-    subprocess.check_call("ssh -o StrictHostKeyChecking=no -i %s %s@%s" %
-                          (identity_file, user, host), shell=True)
+  subprocess.check_call("ssh -o StrictHostKeyChecking=no -i %s %s@%s" %
+                        (identity_file, user, host), shell=True)
 
 def run_cmd(server_name, script, local=False):
   if local:
@@ -45,3 +45,10 @@ def read_ips(ip_fname):
 def read_config(config_file):
     with open(config_file, 'r') as f:
         return json.load(f)
+
+def copy_file(instance, conf, local_path, dest_path):
+  scp(instance.public_dns_name, 
+      conf.key_pair,
+      conf.user,
+      local_path,
+      dest_path)

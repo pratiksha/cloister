@@ -9,28 +9,28 @@ import time
 
 from net_utils import *
 
-def start_manager(manager_ip, bench_name, nprocs, worker_ips, local):
-    run_cmd_nonblock(manager_ip, "scripts/run-manager.sh %s %d %s" % (bench_name, nprocs, worker_ips), local)
+def start_manager(manager_ip, bench_name, nprocs, worker_ips, aws_key, local):
+    run_cmd_nonblock(manager_ip, "scripts/run-manager.sh %s %d %s" % (bench_name, nprocs, worker_ips), aws_key, local)
 
-def start_master(master_ip, bench_name, nprocs, manager_name, worker_ips, local):
-    run_cmd_nonblock(master_ip, "scripts/run-master.sh %s %d %s %s" % (bench_name, nprocs, manager_name, worker_ips), local)
+def start_master(master_ip, bench_name, nprocs, manager_name, worker_ips, aws_key, local):
+    run_cmd_nonblock(master_ip, "scripts/run-master.sh %s %d %s %s" % (bench_name, nprocs, manager_name, worker_ips), aws_key, local)
 
-def start_worker_blocking(worker_ip, bench_name, manager_name, worker_id, local):
+def start_worker_blocking(worker_ip, bench_name, manager_name, worker_id, aws_key, local):
     cmd = "./runserver.sh %s %d %s" % (bench_name, worker_id, manager_name)
     print cmd
-    output = run_cmd(worker_ip, cmd, local)
+    output = run_cmd(worker_ip, cmd, aws_key, local)
     return output
 
-def start_workers(worker_ips, bench_name, nprocs, manager_name, local):
+def start_workers(worker_ips, bench_name, nprocs, manager_name, aws_key, local):
     for ip in worker_ips:
         for i in range(nprocs):
             cmd = "scripts/runserver.sh %s %d %s & sleep 0.1" % (bench_name, i, manager_name)
             print cmd
-            run_cmd_nonblock(ip, cmd, local)
+            run_cmd_nonblock(ip, cmd, aws_key, local)
 
-def kill_servers(server_ips, bench_name):
+def kill_servers(server_ips, bench_name, aws_key):
     for ip in server_ips:
-        run_cmd(ip, "scripts/killserver.sh %s" % bench_name)
+        run_cmd(ip, "scripts/killserver.sh %s" % bench_name, aws_key)
 
 def main():
     parser = argparse.ArgumentParser()
@@ -53,6 +53,8 @@ def main():
                         help="Command to launch")
     parser.add_argument('-l', "--local", action='store_true',
                         help="Run command locally (default is to run remotely on server)")
+    parser.add_argument('-y', "--aws-key", type=str, default="prthaker-slate.pem",
+                        help="AWS key for experiment")
     
     args = parser.parse_args()
 
@@ -68,27 +70,30 @@ def main():
         # don't use this - SSH to master node to start memory manager for experiments, instead
         #    start_manager(manager_name, args.benchmark, args.nprocs, ','.join(worker_names))
         #    time.sleep(10)
-        start_workers(worker_names, args.benchmark, args.nprocs, manager_name)
+        start_workers(worker_names, args.benchmark, args.nprocs, manager_name, args.aws_key)
         time.sleep(10) # hack: wait for workers to come up
 
         if not args.no_master:
-            start_master(master_name, args.benchmark, args.nprocs, manager_name, ','.join(worker_names))
+            start_master(master_name, args.benchmark, args.nprocs, manager_name, ','.join(worker_names), args.aws_key)
 
         time.sleep(1000) # hack: wait for end
-        #kill_servers(server_names, args.benchmark)
+
+    elif args.action == 'killall':
+        kill_servers([master_name], args.benchmark, args.aws_key)
+        kill_servers(server_names, args.benchmark, args.aws_key)
         
     elif args.action == 'make':
         for name in server_names + [master_name]:
-            run_cmd(name, "scripts/make.sh", args.local)
+            run_cmd(name, "scripts/make.sh", args.aws_key, args.local)
 
     elif args.action == 'manager':
-        start_manager(manager_name, args.benchmark, args.nprocs, ','.join(worker_names), args.local)
+        start_manager(manager_name, args.benchmark, args.nprocs, ','.join(worker_names), args.aws_key, args.local)
 
     elif args.action == 'master':
-        start_master(manager_name, args.benchmark, args.nprocs, ','.join(worker_names), args.local)
+        start_master(manager_name, args.benchmark, args.nprocs, ','.join(worker_names), args.aws_key, args.local)
 
     elif args.action == 'worker': # mainly for running single workers locally after ssh to node
-        start_worker_blocking(args.benchmark, manager_name, args.worker_idx, args.local)
+        start_worker_blocking(args.benchmark, manager_name, args.worker_idx, args.aws_key, args.local)
     
 if __name__=="__main__":
     main()

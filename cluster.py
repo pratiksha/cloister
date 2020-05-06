@@ -23,15 +23,16 @@ class Cluster:
         Cluster.write_dns_names(self.master_nodes, 'servers/manager.txt')
         Cluster.write_dns_names(self.worker_nodes, 'servers/servers.txt')
 
-        self.copy_all_dns_names()
+        for instance in self.master_nodes + self.worker_nodes:
+            self.copy_all_dns_names(instance)
         
-    def copy_all_dns_names(self):
+    def copy_all_dns_names(self, instance):
         print('Copying master...')
-        Cluster.copy_dns_names(self.master_nodes, self.conf, 'servers/master.txt')
+        net_utils.copy_file(instance, self.conf, 'servers/master.txt', '~/cloister/servers/master.txt')
         print('Copying manager...')
-        Cluster.copy_dns_names(self.master_nodes, self.conf, 'servers/manager.txt')
+        net_utils.copy_file(instance, self.conf, 'servers/manager.txt', '~/cloister/servers/manager.txt')
         print('Copying servers...')
-        Cluster.copy_dns_names(self.worker_nodes, self.conf, 'servers/servers.txt')
+        net_utils.copy_file(instance, self.conf, 'servers/servers.txt', '~/cloister/servers/servers.txt')
         print('...done.')
         
     @staticmethod
@@ -70,11 +71,6 @@ class Cluster:
             with open(outfile, 'a') as f:
                 f.write(i.public_dns_name +'\n')
 
-    @staticmethod
-    def copy_dns_names(instances, conf, fname):
-        for i in instances:
-            net_utils.copy_file(i, conf, fname, '~/cloister/' + fname) 
-            
     @staticmethod
     def create_new_cluster(client, config, cluster_name):
         (master_sgroup, master_nodes) = Cluster.run_instances(client, config, cluster_name, True)

@@ -41,9 +41,9 @@ def main():
     #                    help="Name of CSV to dump output in")
     parser.add_argument('-b', "--benchmark", type=str, default=None,
                         help="Benchmark to run")
-    parser.add_argument('-s', "--server_names", type=str, default="../servers/servers.txt",
+    parser.add_argument('-s', "--server_names", type=str, default="servers/servers.txt",
                         help="Filename containing list of server IPs")
-    parser.add_argument('-m', "--master_name", type=str, default="../servers/master.txt",
+    parser.add_argument('-m', "--master_name", type=str, default="servers/master.txt",
                         help="Filename containing master IP")
     parser.add_argument('-k', "--nworkers", type=int, default=1,
                         help="Number of nodes to use")

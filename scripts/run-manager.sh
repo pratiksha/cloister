@@ -5,6 +5,7 @@ ulimit -s unlimited
 source ~/.local_vars
 export PUBLIC_HOSTNAME="$(curl http://169.254.169.254/latest/meta-data/public-hostname 2>/dev/null)"
 cd $HOME/clamor/experiments/cpp/$1
+source experiment_vars # Will fail but continue if the file doesn't exist
 curdate=$(date +"%m%d%Y_%H%M")
 echo ./$1 -i $PUBLIC_HOSTNAME -m manager -r 40000 -t $2 -l $1.weld -w $3
 ./$1 -i $PUBLIC_HOSTNAME -m manager -r 40000 -t $2 -l $1.weld -w $3 > manager_$curdate.log

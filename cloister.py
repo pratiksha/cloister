@@ -36,6 +36,9 @@ def main():
         print >> stderr, (e)
         sys.exit(1)
 
+    if conf.ami == 'latest':
+        conf.get_latest_clamor_ami(client)
+        
     if action == 'login':
         login(master_name, conf.key_pair, conf.user)
     elif action == 'login-ami':
@@ -52,6 +55,8 @@ def main():
             print('No cluster found')
     elif action == 'copy-dns':
         cluster = Cluster.get_cluster_if_exists(client, conf, conf.cluster_name) # creates cluster and copies names
+        cluster.copy_all_dns_names()
+        cluster.copy_key()
     else:
         print('Invalid action: ' + action)
         

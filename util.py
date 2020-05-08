@@ -1,5 +1,7 @@
 from copy import deepcopy
 
+import time
+
 class obj(object):
     def __init__(self, d):
         for a, b in d.items():
@@ -18,3 +20,7 @@ def worker_group_name(cluster_name):
 
 def master_group_name(cluster_name):
     return cluster_name + '-master'
+
+def parse_ami_date(date):
+    fmtstr = '%Y-%m-%dT%H:%M:%S.%fZ'
+    return time.strptime(date, fmtstr)

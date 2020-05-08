@@ -30,8 +30,13 @@ def start_workers(worker_ips, bench_name, nprocs, manager_name, aws_key, local):
 
 def kill_servers(server_ips, bench_name, aws_key):
     for ip in server_ips:
-        run_cmd(ip, "scripts/killserver.sh %s" % bench_name, aws_key)
-
+        try:
+            output = run_cmd(ip, "scripts/killserver.sh %s" % bench_name, aws_key)
+            print output
+        except subprocess.CalledProcessError as e:
+            print e
+            continue
+        
 def main():
     parser = argparse.ArgumentParser()
 
@@ -55,6 +60,8 @@ def main():
                         help="Run command locally (default is to run remotely on server)")
     parser.add_argument('-y', "--aws-key", type=str, default="prthaker-slate.pem",
                         help="AWS key for experiment")
+    parser.add_argument('-z', "--no_master", action='store_true',
+                        help="Run workers only (start master manually)")
     
     args = parser.parse_args()
 
@@ -70,11 +77,11 @@ def main():
         # don't use this - SSH to master node to start memory manager for experiments, instead
         #    start_manager(manager_name, args.benchmark, args.nprocs, ','.join(worker_names))
         #    time.sleep(10)
-        start_workers(worker_names, args.benchmark, args.nprocs, manager_name, args.aws_key)
+        start_workers(worker_names, args.benchmark, args.nprocs, manager_name, args.aws_key, args.local)
         time.sleep(10) # hack: wait for workers to come up
 
         if not args.no_master:
-            start_master(master_name, args.benchmark, args.nprocs, manager_name, ','.join(worker_names), args.aws_key)
+            start_master(master_name, args.benchmark, args.nprocs, manager_name, ','.join(worker_names), args.aws_key, args.local)
 
         time.sleep(1000) # hack: wait for end
 

@@ -10,7 +10,7 @@ from security_groups import SecurityGroup as SG
 
 class Cluster:
     def __init__(self, client, master_nodes, worker_nodes,
-                 master_sgroup, worker_sgroup, name, conf):
+                 master_sgroup, worker_sgroup, name, conf, copy_dns=False):
         self.client = client
         self.master_nodes = master_nodes
         self.worker_nodes = worker_nodes
@@ -23,17 +23,23 @@ class Cluster:
         Cluster.write_dns_names(self.master_nodes, 'servers/manager.txt')
         Cluster.write_dns_names(self.worker_nodes, 'servers/servers.txt')
 
+        if copy_dns:
+            self.copy_all_dns_names()
+            self.copy_key()
+            
+    def copy_all_dns_names(self):
         for instance in self.master_nodes + self.worker_nodes:
-            self.copy_all_dns_names(instance)
-        
-    def copy_all_dns_names(self, instance):
-        print('Copying master...')
-        net_utils.copy_file(instance, self.conf, 'servers/master.txt', '~/cloister/servers/master.txt')
-        print('Copying manager...')
-        net_utils.copy_file(instance, self.conf, 'servers/manager.txt', '~/cloister/servers/manager.txt')
-        print('Copying servers...')
-        net_utils.copy_file(instance, self.conf, 'servers/servers.txt', '~/cloister/servers/servers.txt')
-        print('...done.')
+            print('Copying master...')
+            net_utils.copy_file(instance, self.conf, 'servers/master.txt', '~/cloister/servers/master.txt')
+            print('Copying manager...')
+            net_utils.copy_file(instance, self.conf, 'servers/manager.txt', '~/cloister/servers/manager.txt')
+            print('Copying servers...')
+            net_utils.copy_file(instance, self.conf, 'servers/servers.txt', '~/cloister/servers/servers.txt')
+            print('...done.')
+
+    def copy_key(self):
+        for instance in self.master_nodes:
+            net_utils.copy_file(instance, self.conf, self.conf.key_pair, '~/cloister/' + self.conf.key_pair)
         
     @staticmethod
     def run_instances(client, config, cluster_name, master=False):
@@ -76,7 +82,7 @@ class Cluster:
         (master_sgroup, master_nodes) = Cluster.run_instances(client, config, cluster_name, True)
         (worker_sgroup, worker_nodes) = Cluster.run_instances(client, config, cluster_name, False)
         return Cluster(client, master_nodes, worker_nodes,
-                       master_sgroup, worker_sgroup, cluster_name, config)
+                       master_sgroup, worker_sgroup, cluster_name, config, copy_dns=True)
         
     @staticmethod
     def get_cluster_if_exists(client, config, cluster_name):
@@ -101,7 +107,7 @@ class Cluster:
                    (len(master_nodes), len(worker_nodes)))
         if (master_nodes != [] and worker_nodes != []):
             return Cluster(client, master_nodes, worker_nodes,
-                           master_sgroup, worker_sgroup, cluster_name, config)
+                           master_sgroup, worker_sgroup, cluster_name, config, copy_dns=False)
         else:
             if master_nodes == [] and worker_nodes != []:
                 print("ERROR: Could not find master in group " + cluster_name + "-master")

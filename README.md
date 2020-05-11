@@ -1,6 +1,11 @@
 # cloister
 EC2 cluster management for Clamor
 
+## Requirements
+
+Cloister requires `python3` and `boto3`: `pip3 install boto3`.
+Set up your AWS credentials first as documented [here](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/quickstart.html).
+
 ## Setup
 
 Set up Clamor on a single EC2 instance and create an AMI for the instance.

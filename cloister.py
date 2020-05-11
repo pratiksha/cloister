@@ -19,13 +19,20 @@ def login(host, identity_file, user):
 
 def main():
     parser = OptionParser()
+    parser.add_option('-c', '--config_file', type=str,
+                      help='Cloister configuration file name')
 
     (opts, args) = parser.parse_args()
-    action = None
-    if len(args) > 0:
+    if len(args) != 1:
+        print('Must specify a Cloister command.')
+        exit(1)
+    else:
         (action,) = args
-        
-    conf = CloisterConfig(read_config(default_config_file))
+
+    conf_file = default_config_file
+    if opts.config_file != None:
+        conf_file = opts.config_file
+    conf = CloisterConfig(read_config(conf_file))
     
     server_names = read_ips(conf.servers_file)
     master_name = read_ips(conf.master_file)[0]
@@ -37,8 +44,11 @@ def main():
         sys.exit(1)
 
     if conf.ami == 'latest':
-        conf.get_latest_clamor_ami(client)
-        
+        try:
+            conf.get_latest_clamor_ami(client, conf.ami_tag)
+        except AttributeError as e:
+            conf.get_latest_clamor_ami(client)
+            
     if action == 'login':
         login(master_name, conf.key_pair, conf.user)
     elif action == 'login-ami':

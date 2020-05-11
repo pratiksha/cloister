@@ -9,8 +9,8 @@ Create a Cloister configuration for the cluster you want to launch. A sample con
 
 During development, you may create many AMIs as you develop and iterate.
 You can prefix your AMI names with a unique value, e.g. `$USERNAME-clamor-i`,
-and then indicate this prefix in the config file using the `ami-tag` key.
-(For example, `ami-tag: $USERAME-clamor`.)
+and then indicate this prefix in the config file using the `ami_tag` key.
+(For example, `ami_tag: $USERAME-clamor`.)
 If you specify the AMI id as `latest` then Clamor will automatically use the latest
 AMI that has your specified prefix.
 

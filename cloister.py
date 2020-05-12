@@ -67,6 +67,9 @@ def main():
         cluster = Cluster.get_cluster_if_exists(client, conf, conf.cluster_name) # creates cluster and copies names
         cluster.copy_all_dns_names()
         cluster.copy_key()
+    elif action == 'copy-id-rsa':
+        cluster = Cluster.get_cluster_if_exists(client, conf, conf.cluster_name) # creates cluster and copies names
+        cluster.copy_id_rsa()
     else:
         print('Invalid action: ' + action)
         

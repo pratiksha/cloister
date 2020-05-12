@@ -40,7 +40,12 @@ class Cluster:
     def copy_key(self):
         for instance in self.master_nodes:
             net_utils.copy_file(instance, self.conf, self.conf.key_pair, '~/cloister/' + self.conf.key_pair)
-        
+
+    def copy_id_rsa(self):
+        for instance in self.worker_nodes:
+            net_utils.copy_file(instance, self.conf, '/home/ubuntu/.ssh/id_rsa.pub', '~/cloister/master_key.pub')
+            net_utils.run_cmdline(instance.public_dns_name, "cat ~/cloister/master_key.pub >> ~/.ssh/authorized_keys", self.conf.key_pair)
+            
     @staticmethod
     def run_instances(client, config, cluster_name, master=False):
         nworkers = 1

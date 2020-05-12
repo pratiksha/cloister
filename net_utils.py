@@ -19,6 +19,16 @@ def ssh(host, identity_file, user):
   subprocess.check_call("ssh -o StrictHostKeyChecking=no -i %s %s@%s" %
                         (identity_file, user, host), shell=True)
 
+def run_cmdline(server_name, script, aws_key, local=False):
+  if local:
+    output = subprocess.check_output(cmd, shell=True)
+    return output
+  else:
+    cmd = "ssh -A -o StrictHostKeyChecking=no -i %s ubuntu@%s '%s'" % (aws_key, server_name, script)
+    output = subprocess.check_output(cmd, shell=True)
+    return output
+
+## this runs a script
 def run_cmd(server_name, script, aws_key, local=False):
   if local:
     output = subprocess.check_output(cmd, shell=True)

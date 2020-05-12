@@ -34,9 +34,6 @@ def main():
         conf_file = opts.config_file
     conf = CloisterConfig(read_config(conf_file))
     
-    server_names = read_ips(conf.servers_file)
-    master_name = read_ips(conf.master_file)[0]
-
     try:
         client = boto3.resource('ec2', region_name=conf.region)
     except Exception as e:
@@ -50,6 +47,12 @@ def main():
             conf.get_latest_clamor_ami(client)
             
     if action == 'login':
+        try:
+            master_name = read_ips(conf.master_file)[0]
+        except Exception as e:
+            print(e, 'Unable to read master IP file')
+            exit(1)
+            
         login(master_name, conf.key_pair, conf.user)
     elif action == 'login-ami':
         login(conf.ami_instance_ip, conf.key_pair, conf.user)

@@ -19,34 +19,43 @@ def ssh(host, identity_file, user):
   subprocess.check_call("ssh -o StrictHostKeyChecking=no -i %s %s@%s" %
                         (identity_file, user, host), shell=True)
 
+# The --delete option will remove files that no longer exist in src.
+def rsync(src, dest, identity_file, user, dirname):
+  command = (("rsync -avh -e 'ssh -o StrictHostKeyChecking=no -i %s' " + 
+              "'%s/' '%s@%s:%s/' --delete") % (identity_file, dirname,
+                                               user, dest, dirname))
+  output = run_cmdline(src, command, identity_file)
+  print(output)
+  
 def run_cmdline(server_name, script, aws_key, local=False):
   if local:
-    output = subprocess.check_output(cmd, shell=True)
+    output = subprocess.check_output(cmd, shell=True, universal_newlines=True)
     return output
   else:
-    cmd = "ssh -A -o StrictHostKeyChecking=no -i %s ubuntu@%s '%s'" % (aws_key, server_name, script)
-    output = subprocess.check_output(cmd, shell=True)
+    cmd = "ssh -A -o StrictHostKeyChecking=no -i %s ubuntu@%s \"%s\"" % (aws_key, server_name, script)
+    print(cmd)
+    output = subprocess.check_output(cmd, shell=True, universal_newlines=True)
     return output
 
 ## this runs a script
 def run_cmd(server_name, script, aws_key, local=False):
   if local:
-    output = subprocess.check_output(cmd, shell=True)
+    output = subprocess.check_output(cmd, shell=True, universal_newlines=True)
     return output
   else:
     cmd = "ssh -A -o StrictHostKeyChecking=no -i %s ubuntu@%s 'bash -s' < %s" % (aws_key, server_name, script)
-    output = subprocess.check_output(cmd, shell=True)
+    output = subprocess.check_output(cmd, shell=True, universal_newlines=True)
     return output
 
 def run_cmd_nonblock(server_name, script, aws_key, local=False):
   if local:
     cmd = script
     print(cmd)
-    subprocess.Popen(cmd, shell=True)
+    subprocess.Popen(cmd, shell=True, universal_newlines=True)
   else:
     cmd = "ssh -A -o StrictHostKeyChecking=no -i %s ubuntu@%s 'bash -s' < %s" % (aws_key, server_name, script)
     print(cmd)
-    subprocess.Popen(cmd, shell=True)
+    subprocess.Popen(cmd, shell=True, universal_newlines=True)
 
 def read_ips(ip_fname):
     with open(ip_fname, 'r') as f:

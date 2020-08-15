@@ -10,7 +10,7 @@ Set up your AWS credentials first as documented [here](https://boto3.amazonaws.c
 
 Set up Clamor on a single EC2 instance and create an AMI for the instance.
 
-Create a Cloister configuration for the cluster you want to launch. A sample configuration file can be found in `sample_config.json`.
+Create a Cloister configuration for the cluster you want to launch. A sample configuration file can be found in `configs/sample_config.json`.
 
 During development, you may create many AMIs as you develop and iterate.
 You can prefix your AMI names with a unique value, e.g. `$USERNAME-clamor-i`,
@@ -31,8 +31,10 @@ AMI that has your specified prefix.
   can be launched directly from the master. (`launch` should run this automatically,
   but on occasion the instances take too long to initialize and SSH times out, so
   this command needs to be run manually after launch.)
+* `redeploy`: Use `rsync` to update the `clamor` folder on all workers in the cluster
+  using the `clamor` folder on the development instance.
 
-Cloister uses python 3. Run `python3 cloister.py [-c CONFIG] COMMAND`.
+Cloister requires python 3. Run `python3 cloister.py [-c CONFIG] COMMAND`.
 
 ## Running experiments
 

@@ -10,7 +10,7 @@ from cluster import Cluster
 from config import CloisterConfig
 from security_groups import SecurityGroup
 
-default_config_file = 'clamor_config_east.json'
+default_config_file = 'configs/clamor_config_east.json'
 
 from net_utils import *
 
@@ -21,6 +21,8 @@ def main():
     parser = OptionParser()
     parser.add_option('-c', '--config_file', type=str,
                       help='Cloister configuration file name')
+    parser.add_option('-l', '--cluster_label', type=str,
+                      help='Cluster name override')
 
     (opts, args) = parser.parse_args()
     if len(args) != 1:
@@ -33,7 +35,13 @@ def main():
     if opts.config_file != None:
         conf_file = opts.config_file
     conf = CloisterConfig(read_config(conf_file))
-    
+
+    if opts.cluster_label != None:
+        conf.cluster_name = opts.cluster_label
+        conf.ami_tag = opts.cluster_label
+
+    print(conf)
+        
     try:
         client = boto3.resource('ec2', region_name=conf.region)
     except Exception as e:
@@ -73,6 +81,10 @@ def main():
     elif action == 'copy-id-rsa':
         cluster = Cluster.get_cluster_if_exists(client, conf, conf.cluster_name) # creates cluster and copies names
         cluster.copy_id_rsa()
+    elif action == 'redeploy':
+        # rsync all files from ami instance to cluster.
+        cluster = Cluster.get_cluster_if_exists(client, conf, conf.cluster_name) # creates cluster and copies names
+        cluster.redeploy()
     else:
         print('Invalid action: ' + action)
         

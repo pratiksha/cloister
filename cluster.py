@@ -26,6 +26,17 @@ class Cluster:
         if copy_dns:
             self.copy_all_dns_names()
             self.copy_key()
+
+    def redeploy(self):
+        folders = ['clamor']
+        for instance in self.master_nodes + self.worker_nodes:
+            for folder in folders:
+                print('rsync to %s' % instance.public_dns_name)
+                net_utils.rsync(self.conf.ami_instance_ip,
+                                instance.public_dns_name,
+                                self.conf.key_pair,
+                                self.conf.user,
+                                folder)
             
     def copy_all_dns_names(self):
         for instance in self.master_nodes + self.worker_nodes:

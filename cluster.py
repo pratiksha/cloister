@@ -28,8 +28,12 @@ class Cluster:
             self.copy_key()
 
     def redeploy(self):
-        folders = ['clamor']
+        folders = ['clamor', 'weld']
+        idx = 0
         for instance in self.master_nodes + self.worker_nodes:
+            if idx % 2 == 0:
+                time.sleep(3) # avoid ssh errors
+            idx += 1
             for folder in folders:
                 print('rsync to %s' % instance.public_dns_name)
                 net_utils.rsync(self.conf.ami_instance_ip,
@@ -37,7 +41,14 @@ class Cluster:
                                 self.conf.key_pair,
                                 self.conf.user,
                                 folder)
-            
+
+    def run_command(self, command):
+        for instance in self.master_nodes + self.worker_nodes:
+            print(instance.public_dns_name)
+            net_utils.run_cmdline_nonblock(instance.public_dns_name,
+                                           command,
+                                           self.conf.key_pair)
+                
     def copy_all_dns_names(self):
         for instance in self.master_nodes + self.worker_nodes:
             print('Copying master...')
@@ -65,17 +76,28 @@ class Cluster:
             nworkers = config.nworkers
             group_name = util.worker_group_name(cluster_name)
 
+        imgs = list(client.images.filter(ImageIds=[config.ami]));
+        device_name = imgs[0].root_device_name
+            
         sgroup = SG.get_or_create_group(client, group_name)
         instances = client.create_instances(ImageId = config.ami,
-                                      KeyName = config.identity_file,
-                                      SecurityGroups = [group_name],
-                                      InstanceType = config.instance_type,
-                                      MinCount = nworkers,
-                                      MaxCount = nworkers,
-                                      TagSpecifications=[{
-                                          'ResourceType':'instance',
-                                          'Tags':[{'Key':'Name', 'Value':group_name}]
-                                      }])
+                                            KeyName = config.identity_file,
+                                            SecurityGroups = [group_name],
+                                            InstanceType = config.instance_type,
+                                            MinCount = nworkers,
+                                            MaxCount = nworkers,
+                                            BlockDeviceMappings=[
+                                                {"DeviceName": device_name,
+                                                 "Ebs" :
+                                                 { "VolumeSize" : config.root_size }}],
+                                            Placement={
+                                                #'AvailabilityZone':config.region,
+                                                'GroupName':'clamor',
+                                            },
+                                            TagSpecifications=[{
+                                                'ResourceType':'instance',
+                                                'Tags':[{'Key':'Name', 'Value':group_name}]
+                                            }])
 
         # wait for instances to start up
         states = ([x.state['Name'] for x in instances])
@@ -84,7 +106,7 @@ class Cluster:
             time.sleep(10)
             [x.reload() for x in instances]
         return (sgroup, instances)
-        
+
     @staticmethod
     def write_dns_names(instances, outfile):
         open(outfile, 'w').close() # erases existing data

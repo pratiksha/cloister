@@ -20,13 +20,15 @@ def ssh(host, identity_file, user):
                         (identity_file, user, host), shell=True)
 
 # The --delete option will remove files that no longer exist in src.
-def rsync(src, dest, identity_file, user, dirname):
+def rsync(src, dest, identity_file, user, dirname, delete=False):
   command = (("rsync -avh -e 'ssh -o StrictHostKeyChecking=no -i %s' " + 
-              "'%s/' '%s@%s:%s/' --delete") % (identity_file, dirname,
-                                               user, dest, dirname))
-  output = run_cmdline(src, command, identity_file)
+              "'%s/' '%s@%s:%s/'") % (identity_file, dirname,
+                                      user, dest, dirname))
+  if delete:
+    command += " --delete"
+  output = run_cmdline_nonblock(src, command, identity_file)
   print(output)
-  
+
 def run_cmdline(server_name, script, aws_key, local=False):
   if local:
     output = subprocess.check_output(cmd, shell=True, universal_newlines=True)
@@ -37,6 +39,14 @@ def run_cmdline(server_name, script, aws_key, local=False):
     output = subprocess.check_output(cmd, shell=True, universal_newlines=True)
     return output
 
+def run_cmdline_nonblock(server_name, script, aws_key, local=False):
+  if local:
+    output = subprocess.Popen(cmd, shell=True, universal_newlines=True)
+  else:
+    cmd = "ssh -A -o StrictHostKeyChecking=no -i %s ubuntu@%s \"%s\"" % (aws_key, server_name, script)
+    print(cmd)
+    output = subprocess.Popen(cmd, shell=True, universal_newlines=True)
+  
 ## this runs a script
 def run_cmd(server_name, script, aws_key, local=False):
   if local:

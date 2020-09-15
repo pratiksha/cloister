@@ -23,13 +23,18 @@ def main():
                       help='Cloister configuration file name')
     parser.add_option('-l', '--cluster_label', type=str,
                       help='Cluster name override')
+    parser.add_option('-n', '--nworkers', type=str,
+                      help='Cluster size override')
 
     (opts, args) = parser.parse_args()
-    if len(args) != 1:
+    if len(args) < 1:
         print('Must specify a Cloister command.')
         exit(1)
-    else:
+    elif len(args) == 1:
         (action,) = args
+    elif len(args) > 1:
+        action = args[0]
+        args = args[1:]
 
     conf_file = default_config_file
     if opts.config_file != None:
@@ -40,6 +45,9 @@ def main():
         conf.cluster_name = opts.cluster_label
         conf.ami_tag = opts.cluster_label
 
+    if opts.nworkers != None:
+        conf.nworkers = int(opts.nworkers)
+        
     print(conf)
         
     try:
@@ -74,6 +82,9 @@ def main():
             cluster.destroy()
         else:
             print('No cluster found')
+    elif action == 'run-command':
+        cluster = Cluster.get_cluster_if_exists(client, conf, conf.cluster_name) # creates cluster and copies names
+        cluster.run_command(args[0])
     elif action == 'copy-dns':
         cluster = Cluster.get_cluster_if_exists(client, conf, conf.cluster_name) # creates cluster and copies names
         cluster.copy_all_dns_names()

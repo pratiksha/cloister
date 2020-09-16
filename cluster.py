@@ -28,7 +28,7 @@ class Cluster:
             self.copy_key()
 
     def redeploy(self):
-        folders = ['clamor', 'weld']
+        folders = ['clamor/', 'weld/', '.bashrc']
         idx = 0
         for instance in self.master_nodes + self.worker_nodes:
             if idx % 2 == 0:
@@ -42,6 +42,12 @@ class Cluster:
                                 self.conf.user,
                                 folder)
 
+    def load_tpch_data(self):
+        files = ['lineitem_large', 'order_large', 'part_large', 'supplier_large']
+        cmd = 'wget https://weld-dsm-east.s3.amazonaws.com/%s -P /home/ubuntu/clamor/baselines/tpch_data/' 
+        for f in files:
+            self.run_command(cmd % f)
+            
     def run_command(self, command):
         for instance in self.master_nodes + self.worker_nodes:
             print(instance.public_dns_name)

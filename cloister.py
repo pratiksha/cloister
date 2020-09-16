@@ -82,6 +82,9 @@ def main():
             cluster.destroy()
         else:
             print('No cluster found')
+    elif action == 'load-tpch':
+        cluster = Cluster.get_cluster_if_exists(client, conf, conf.cluster_name) # creates cluster and copies names
+        cluster.load_tpch_data()
     elif action == 'run-command':
         cluster = Cluster.get_cluster_if_exists(client, conf, conf.cluster_name) # creates cluster and copies names
         cluster.run_command(args[0])

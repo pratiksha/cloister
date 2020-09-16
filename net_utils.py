@@ -22,7 +22,7 @@ def ssh(host, identity_file, user):
 # The --delete option will remove files that no longer exist in src.
 def rsync(src, dest, identity_file, user, dirname, delete=False):
   command = (("rsync -avh -e 'ssh -o StrictHostKeyChecking=no -i %s' " + 
-              "'%s/' '%s@%s:%s/'") % (identity_file, dirname,
+              "'%s' '%s@%s:%s'") % (identity_file, dirname,
                                       user, dest, dirname))
   if delete:
     command += " --delete"

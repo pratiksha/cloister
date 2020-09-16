@@ -7,5 +7,5 @@ export PUBLIC_HOSTNAME="$(curl http://169.254.169.254/latest/meta-data/public-ho
 cd $HOME/clamor/experiments/cpp/$1
 source experiment_vars # Will fail but continue if the file doesn't exist
 curdate=$(date +"%m%d%Y_%H%M")
-echo ./$1 -i $PUBLIC_HOSTNAME -p 70000 -m master -d $3 -l $1.weld -t $2 -w $4
-./$1 -i $PUBLIC_HOSTNAME -p 70000 -m master -d $3 -l $1.weld -t $2 -w $4 > master_$curdate.log
+echo ./$1 -i $PUBLIC_HOSTNAME -p 70000 -m master -d $3 -l $1.weld -t $2 -w $4 -x $5
+./$1 -i $PUBLIC_HOSTNAME -p 70000 -m master -d $3 -l $1.weld -t $2 -w $4 -x $5 > master_$curdate.log

@@ -9,11 +9,11 @@ import time
 
 from net_utils import *
 
-def start_manager(manager_ip, bench_name, nprocs, worker_ips, aws_key, local):
-    run_cmd_nonblock(manager_ip, "scripts/run-manager.sh %s %d %s" % (bench_name, nprocs, worker_ips), aws_key, local)
+def start_manager(manager_ip, bench_name, nprocs, npartitions, worker_ips, aws_key, local):
+    run_cmd_nonblock(manager_ip, "scripts/run-manager.sh %s %d %s %d" % (bench_name, nprocs, worker_ips, npartitions), aws_key, local)
 
-def start_master(master_ip, bench_name, nprocs, manager_name, worker_ips, aws_key, local):
-    run_cmd_nonblock(master_ip, "scripts/run-master.sh %s %d %s %s" % (bench_name, nprocs, manager_name, worker_ips), aws_key, local)
+def start_master(master_ip, bench_name, nprocs, npartitions, manager_name, worker_ips, aws_key, local):
+    run_cmd_nonblock(master_ip, "scripts/run-master.sh %s %d %s %s %d" % (bench_name, nprocs, manager_name, worker_ips, npartitions), aws_key, local)
 
 def start_worker_blocking(worker_ip, bench_name, manager_name, worker_id, aws_key, local):
     cmd = "./runserver.sh %s %d %s" % (bench_name, worker_id, manager_name)
@@ -81,7 +81,7 @@ def main():
         time.sleep(10) # hack: wait for workers to come up
 
         if not args.no_master:
-            start_master(master_name, args.benchmark, args.nprocs, manager_name, ','.join(worker_names), args.aws_key, args.local)
+            start_master(master_name, args.benchmark, args.nprocs, args.nprocs * len(worker_names), manager_name, ','.join(worker_names), args.aws_key, args.local)
 
         time.sleep(1000) # hack: wait for end
 
@@ -94,10 +94,10 @@ def main():
             run_cmd(name, "scripts/make.sh", args.aws_key, args.local)
 
     elif args.action == 'manager':
-        start_manager(manager_name, args.benchmark, args.nprocs, ','.join(worker_names), args.aws_key, args.local)
+        start_manager(manager_name, args.benchmark, args.nprocs, args.nprocs * len(worker_names), ','.join(worker_names), args.aws_key, args.local)
 
     elif args.action == 'master':
-        start_master(manager_name, args.benchmark, args.nprocs, ','.join(worker_names), args.aws_key, args.local)
+        start_master(manager_name, args.benchmark, args.nprocs, args.nprocs * len(worker_names), manager_name, ','.join(worker_names), args.aws_key, args.local)
 
     elif args.action == 'worker': # mainly for running single workers locally after ssh to node
         start_worker_blocking(args.benchmark, manager_name, args.worker_idx, args.aws_key, args.local)

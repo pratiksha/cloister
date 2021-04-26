@@ -10,10 +10,16 @@ import time
 default_user = "ubuntu"
 
 # Copy a file to a given host through scp, throwing an exception if scp fails
-def scp(host, identity_file, user, local_file, dest_file):
+def scp(host, identity_file, user, local_file, remote_file):
   subprocess.check_call(
-      "scp -q -o StrictHostKeyChecking=no -i %s '%s' '%s@%s:%s'" %
-      (identity_file, local_file, user, host, dest_file), shell=True)
+    "scp -q -o StrictHostKeyChecking=no -i %s '%s' '%s@%s:%s'" %
+    (identity_file, local_file, user, host, remote_file), shell=True)
+  
+# Copy file from host to local directory
+def reverse_scp(host, identity_file, user, local_file, remote_file):
+  subprocess.check_call(
+    "scp -q -o StrictHostKeyChecking=no -i %s '%s@%s:%s' '%s'" %
+    (identity_file, user, host, remote_file, local_file), shell=True)
 
 def ssh(host, identity_file, user):
   subprocess.check_call("ssh -o StrictHostKeyChecking=no -i %s %s@%s" %
@@ -75,9 +81,16 @@ def read_config(config_file):
     with open(config_file, 'r') as f:
         return json.load(f)
 
-def copy_file(instance, conf, local_path, dest_path):
+def copy_file(instance, conf, local_path, remote_path):
   scp(instance.public_dns_name, 
       conf.key_pair,
       conf.user,
       local_path,
-      dest_path)
+      remote_path)
+
+def copy_remote_file(instance, conf, local_path, remote_path):
+  reverse_scp(instance.public_dns_name, 
+              conf.key_pair,
+              conf.user,
+              local_path,
+              remote_path)

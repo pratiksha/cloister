@@ -1,6 +1,7 @@
 import boto3 as boto
 
 import time
+import os
 
 import net_utils
 import util
@@ -22,13 +23,75 @@ class Cluster:
         Cluster.write_dns_names(self.master_nodes, 'servers/master.txt')
         Cluster.write_dns_names(self.master_nodes, 'servers/manager.txt')
         Cluster.write_dns_names(self.worker_nodes, 'servers/servers.txt')
+        Cluster.write_private_ips(self.worker_nodes, 'servers/servers_private.txt')
 
         if copy_dns:
             self.copy_all_dns_names()
             self.copy_key()
 
+    def download_logs(self, bench_name, timestamp):
+        folder_name = 'logs_' + bench_name + '_' + timestamp + '/'
+        if not os.path.exists(folder_name):
+            os.makedirs(folder_name)
+
+        prefix = '~/clamor/experiments/cpp/' + bench_name + '/'
+            
+        for instance in self.worker_nodes:
+            subfolder_name = 'logs_' + bench_name + '_' + timestamp + '/' + instance.public_dns_name + '/'
+            if not os.path.exists(subfolder_name):
+                os.makedirs(subfolder_name)
+            try:
+                files = net_utils.run_cmdline(instance.public_dns_name,
+                                              'ls ' + prefix + '*_' + timestamp + '\.log',
+                                              self.conf.key_pair)
+                print(files)
+                net_utils.copy_remote_file(instance, self.conf, subfolder_name, prefix + '*_' + timestamp + '\.log')
+            except:
+                continue
+                
+        # Master/manager may not have exactly the same timestamp
+        for instance in self.master_nodes:
+            files = net_utils.run_cmdline(instance.public_dns_name,
+                                          'ls ' + prefix + '*_' + timestamp + '\.log',
+                                          self.conf.key_pair)
+            files = net_utils.run_cmdline(instance.public_dns_name,
+                                          'ls -tr ' + prefix + '*.log | tail -2',
+                                          self.conf.key_pair)
+            s = ''.join(files)
+            files = s.strip().split('\n')
+            for f in files:
+                net_utils.copy_remote_file(instance, self.conf, folder_name, f)                
+
+    def erase_logs(self, bench_name, timestamp):
+        folder_name = 'logs_' + bench_name + '_' + timestamp + '/'
+        if not os.path.exists(folder_name):
+            os.makedirs(folder_name)
+
+        prefix = '~/clamor/experiments/cpp/' + bench_name + '/'
+            
+        for instance in self.worker_nodes:
+            subfolder_name = 'logs_' + bench_name + '_' + timestamp + '/' + instance.public_dns_name + '/'
+            if not os.path.exists(subfolder_name):
+                os.makedirs(subfolder_name)
+            try:
+                files = net_utils.run_cmdline(instance.public_dns_name,
+                                              'rm -rf ' + prefix + '*_' + timestamp + '\.log',
+                                              self.conf.key_pair)
+                print(files)
+            except:
+                continue
+                
+        # Master/manager may not have exactly the same timestamp
+        for instance in self.master_nodes:
+            files = net_utils.run_cmdline(instance.public_dns_name,
+                                          'rm -rf ' + prefix + '*_' + timestamp + '\.log',
+                                          self.conf.key_pair)
+            #files = net_utils.run_cmdline(instance.public_dns_name,
+            #                              'ls -tr ' + prefix + '*.log | tail -2',
+            #                              self.conf.key_pair)
+                
     def redeploy(self):
-        folders = ['clamor/', 'weld/', '.bashrc']
+        folders = ['clamor/', 'weld/', 'cloister/', '.bashrc']
         idx = 0
         for instance in self.master_nodes + self.worker_nodes:
             if idx % 2 == 0:
@@ -64,6 +127,8 @@ class Cluster:
             print('Copying servers...')
             net_utils.copy_file(instance, self.conf, 'servers/servers.txt', '~/cloister/servers/servers.txt')
             print('...done.')
+            net_utils.copy_file(instance, self.conf, 'servers/servers_private.txt', '~/cloister/servers/servers_private.txt')
+            print('...done.')
 
     def copy_key(self):
         for instance in self.master_nodes:
@@ -72,7 +137,9 @@ class Cluster:
     def copy_id_rsa(self):
         for instance in self.worker_nodes:
             net_utils.copy_file(instance, self.conf, '/home/ubuntu/.ssh/id_rsa.pub', '~/cloister/master_key.pub')
-            net_utils.run_cmdline(instance.public_dns_name, "cat ~/cloister/master_key.pub >> ~/.ssh/authorized_keys", self.conf.key_pair)
+            net_utils.run_cmdline(instance.public_dns_name,
+                                  "cat ~/cloister/master_key.pub >> ~/.ssh/authorized_keys",
+                                  self.conf.key_pair)
             
     @staticmethod
     def run_instances(client, config, cluster_name, master=False):
@@ -121,6 +188,13 @@ class Cluster:
             with open(outfile, 'a') as f:
                 f.write(i.public_dns_name +'\n')
 
+    @staticmethod
+    def write_private_ips(instances, outfile):
+        open(outfile, 'w').close()
+        for i in instances:
+            with open(outfile, 'a') as f:
+                f.write(i.private_ip_address + '\n')
+                
     @staticmethod
     def create_new_cluster(client, config, cluster_name):
         (master_sgroup, master_nodes) = Cluster.run_instances(client, config, cluster_name, True)

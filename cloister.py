@@ -28,6 +28,7 @@ def main():
 
     (opts, args) = parser.parse_args()
     if len(args) < 1:
+        
         print('Must specify a Cloister command.')
         exit(1)
     elif len(args) == 1:
@@ -99,6 +100,16 @@ def main():
         # rsync all files from ami instance to cluster.
         cluster = Cluster.get_cluster_if_exists(client, conf, conf.cluster_name) # creates cluster and copies names
         cluster.redeploy()
+    elif action == 'download-logs':
+        cluster = Cluster.get_cluster_if_exists(client, conf, conf.cluster_name) # creates cluster and copies names
+        bench_name = args[0]
+        timestamp = args[1]
+        cluster.download_logs(bench_name, timestamp)
+    elif action == 'erase-logs':
+        cluster = Cluster.get_cluster_if_exists(client, conf, conf.cluster_name) # creates cluster and copies names
+        bench_name = args[0]
+        timestamp = args[1]
+        cluster.erase_logs(bench_name, timestamp)
     else:
         print('Invalid action: ' + action)
         

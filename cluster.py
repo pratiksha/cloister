@@ -24,6 +24,7 @@ class Cluster:
         Cluster.write_dns_names(self.master_nodes, 'servers/manager.txt')
         Cluster.write_dns_names(self.worker_nodes, 'servers/servers.txt')
         Cluster.write_private_ips(self.worker_nodes, 'servers/servers_private.txt')
+        Cluster.write_public_ips(self.worker_nodes, 'servers/servers_public.txt')
 
         if copy_dns:
             self.copy_all_dns_names()
@@ -89,7 +90,28 @@ class Cluster:
             #files = net_utils.run_cmdline(instance.public_dns_name,
             #                              'ls -tr ' + prefix + '*.log | tail -2',
             #                              self.conf.key_pair)
+
+    def erase_all_logs(self, bench_name):
+        prefix = '~/clamor/experiments/cpp/' + bench_name + '/'
+            
+        for instance in self.worker_nodes:
+            try:
+                files = net_utils.run_cmdline(instance.public_dns_name,
+                                              'rm -rf ' + prefix + '*\.log',
+                                              self.conf.key_pair)
+                print(files)
+            except:
+                continue
                 
+        # Master/manager may not have exactly the same timestamp
+        for instance in self.master_nodes:
+            files = net_utils.run_cmdline(instance.public_dns_name,
+                                          'rm -rf ' + prefix + '*\.log',
+                                          self.conf.key_pair)
+            #files = net_utils.run_cmdline(instance.public_dns_name,
+            #                              'ls -tr ' + prefix + '*.log | tail -2',
+            #                              self.conf.key_pair)
+            
     def redeploy(self):
         folders = ['clamor/', 'weld/', 'cloister/', '.bashrc']
         idx = 0
@@ -103,7 +125,7 @@ class Cluster:
                                 instance.public_dns_name,
                                 self.conf.key_pair,
                                 self.conf.user,
-                                folder)
+                                folder, delete=False)
 
     def load_tpch_data(self):
         files = ['lineitem_large', 'order_large', 'part_large', 'supplier_large']
@@ -121,13 +143,15 @@ class Cluster:
     def copy_all_dns_names(self):
         for instance in self.master_nodes + self.worker_nodes:
             print('Copying master...')
-            net_utils.copy_file(instance, self.conf, 'servers/master.txt', '~/cloister/servers/master.txt')
+            net_utils.copy_file(instance, self.conf, 'servers/master.txt', '~/cloister/servers/master.txt', nonblock=True)
             print('Copying manager...')
-            net_utils.copy_file(instance, self.conf, 'servers/manager.txt', '~/cloister/servers/manager.txt')
+            net_utils.copy_file(instance, self.conf, 'servers/manager.txt', '~/cloister/servers/manager.txt', nonblock=True)
             print('Copying servers...')
-            net_utils.copy_file(instance, self.conf, 'servers/servers.txt', '~/cloister/servers/servers.txt')
+            net_utils.copy_file(instance, self.conf, 'servers/servers.txt', '~/cloister/servers/servers.txt', nonblock=True)
             print('...done.')
-            net_utils.copy_file(instance, self.conf, 'servers/servers_private.txt', '~/cloister/servers/servers_private.txt')
+            net_utils.copy_file(instance, self.conf, 'servers/servers_private.txt', '~/cloister/servers/servers_private.txt', nonblock=True)
+            print('...done.')
+            net_utils.copy_file(instance, self.conf, 'servers/servers_public.txt', '~/cloister/servers/servers_public.txt', nonblock=True)
             print('...done.')
 
     def copy_key(self):
@@ -140,6 +164,29 @@ class Cluster:
             net_utils.run_cmdline(instance.public_dns_name,
                                   "cat ~/cloister/master_key.pub >> ~/.ssh/authorized_keys",
                                   self.conf.key_pair)
+
+    def attach_swap(self):
+        swap_size = self.conf.swap_size_master
+        master_id = self.master_nodes[0].id
+        zone = self.master_nodes[0].placement['AvailabilityZone']
+        print(zone)
+        volume = self.client.create_volume(
+            AvailabilityZone=zone,
+            Encrypted=False,
+            Size=swap_size
+        )
+
+        while volume.state != 'available':
+            print(volume.state)
+            time.sleep(1)
+            volume.reload()
+            
+        response= self.master_nodes[0].attach_volume(
+            Device='/dev/sdf',
+            VolumeId=volume.id,
+        )
+
+        print(response)
             
     @staticmethod
     def run_instances(client, config, cluster_name, master=False):
@@ -153,16 +200,21 @@ class Cluster:
         device_name = imgs[0].root_device_name
             
         sgroup = SG.get_or_create_group(client, group_name)
+        if master and config.master_instance_type:
+            instance_type = config.master_instance_type
+        else:
+            instance_type = config.instance_type
+
+        device_mappings = [{"DeviceName": device_name,
+                            "Ebs" :
+                            { "VolumeSize" : config.root_size }}]
         instances = client.create_instances(ImageId = config.ami,
                                             KeyName = config.identity_file,
                                             SecurityGroups = [group_name],
-                                            InstanceType = config.instance_type,
+                                            InstanceType = instance_type,
                                             MinCount = nworkers,
                                             MaxCount = nworkers,
-                                            BlockDeviceMappings=[
-                                                {"DeviceName": device_name,
-                                                 "Ebs" :
-                                                 { "VolumeSize" : config.root_size }}],
+                                            BlockDeviceMappings=device_mappings,
                                             Placement={
                                                 #'AvailabilityZone':config.region,
                                                 'GroupName':'clamor',
@@ -194,6 +246,13 @@ class Cluster:
         for i in instances:
             with open(outfile, 'a') as f:
                 f.write(i.private_ip_address + '\n')
+
+    @staticmethod
+    def write_public_ips(instances, outfile):
+        open(outfile, 'w').close()
+        for i in instances:
+            with open(outfile, 'a') as f:
+                f.write(i.public_ip_address + '\n')
                 
     @staticmethod
     def create_new_cluster(client, config, cluster_name):

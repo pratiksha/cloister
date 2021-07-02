@@ -14,7 +14,13 @@ def scp(host, identity_file, user, local_file, remote_file):
   subprocess.check_call(
     "scp -q -o StrictHostKeyChecking=no -i %s '%s' '%s@%s:%s'" %
     (identity_file, local_file, user, host, remote_file), shell=True)
-  
+
+# Copy a file to a given host through scp, throwing an exception if scp fails
+def scp_nonblock(host, identity_file, user, local_file, remote_file):
+  subprocess.Popen(
+    "scp -q -o StrictHostKeyChecking=no -i %s '%s' '%s@%s:%s'" %
+    (identity_file, local_file, user, host, remote_file), shell=True)
+
 # Copy file from host to local directory
 def reverse_scp(host, identity_file, user, local_file, remote_file):
   subprocess.check_call(
@@ -81,8 +87,13 @@ def read_config(config_file):
     with open(config_file, 'r') as f:
         return json.load(f)
 
-def copy_file(instance, conf, local_path, remote_path):
-  scp(instance.public_dns_name, 
+def copy_file(instance, conf, local_path, remote_path, nonblock=False):
+  if nonblock:
+    func = scp_nonblock
+  else:
+    func = scp
+
+  func(instance.public_dns_name, 
       conf.key_pair,
       conf.user,
       local_path,

@@ -10,7 +10,7 @@ from cluster import Cluster
 from config import CloisterConfig
 from security_groups import SecurityGroup
 
-default_config_file = 'configs/clamor_config_east.json'
+default_config_file = 'configs/ps_config.json'
 
 from net_utils import *
 
@@ -86,6 +86,9 @@ def main():
     elif action == 'load-tpch':
         cluster = Cluster.get_cluster_if_exists(client, conf, conf.cluster_name) # creates cluster and copies names
         cluster.load_tpch_data()
+    elif action == 'attach-swap':
+        cluster = Cluster.get_cluster_if_exists(client, conf, conf.cluster_name) # creates cluster and copies names
+        cluster.attach_swap()
     elif action == 'run-command':
         cluster = Cluster.get_cluster_if_exists(client, conf, conf.cluster_name) # creates cluster and copies names
         cluster.run_command(args[0])
@@ -110,6 +113,10 @@ def main():
         bench_name = args[0]
         timestamp = args[1]
         cluster.erase_logs(bench_name, timestamp)
+    elif action == 'erase-all-logs':
+        cluster = Cluster.get_cluster_if_exists(client, conf, conf.cluster_name) # creates cluster and copies names
+        bench_name = args[0]
+        cluster.erase_all_logs(bench_name)
     else:
         print('Invalid action: ' + action)
         

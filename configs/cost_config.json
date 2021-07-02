@@ -12,5 +12,7 @@
     "datagen_instance_ip":"ec2-34-211-82-18.us-west-2.compute.amazonaws.com",
     "region":"us-east-1",
     "nworkers":8,
+    "root_size":32,
+    "swap_size_master":1,
     "ami_tag":"cost"
 }

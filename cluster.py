@@ -113,7 +113,7 @@ class Cluster:
             #                              self.conf.key_pair)
             
     def redeploy(self):
-        folders = ['clamor/', 'weld/', 'cloister/', '.bashrc']
+        folders = ['clamor/', 'weld/', 'cloister/', 'cost-benchmarks/', '.bashrc']
         idx = 0
         for instance in self.master_nodes + self.worker_nodes:
             if idx % 2 == 0:
@@ -132,6 +132,12 @@ class Cluster:
         cmd = 'wget https://weld-dsm-east.s3.amazonaws.com/%s -P /home/ubuntu/clamor/baselines/tpch_data/' 
         for f in files:
             self.run_command(cmd % f)
+
+    def load_data(self, data_spec, load_dir):
+        nworkers = len(self.worker_nodes)
+        for i in range(nworkers): # actually what we want is to distribute partitions across workers.
+            cmd = 'wget %s/%s -P %s' % (data_spec.location, i, load_dir)
+            self.run_command(cmd)
             
     def run_command(self, command):
         for instance in self.master_nodes + self.worker_nodes:

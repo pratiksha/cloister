@@ -1,6 +1,12 @@
 # cloister
 EC2 cluster management for Clamor
 
+## Disclaimer
+
+Please note that this is research code and launches real clusters that may cost money.
+We do not guarantee that Cloister will correctly set up or tear down clusters -
+please keep an eye on your expenditures.
+
 ## Requirements
 
 Cloister requires `python3` and `boto3`: `pip3 install boto3`.
@@ -12,12 +18,10 @@ Set up Clamor on a single EC2 instance and create an AMI for the instance.
 
 Create a Cloister configuration for the cluster you want to launch. A sample configuration file can be found in `configs/sample_config.json`.
 
-During development, you may create many AMIs as you develop and iterate.
-You can prefix your AMI names with a unique value, e.g. `$USERNAME-clamor-i`,
-and then indicate this prefix in the config file using the `ami_tag` key.
-(For example, `ami_tag: $USERAME-clamor`.)
-If you specify the AMI id as `latest` then Clamor will automatically use the latest
-AMI that has your specified prefix.
+Cloister creates instances by cloning an AMI. The key `ami` specifies the AMI ID.
+Alternatively, you can specify the prefix of an AMI name with the key `ami_tag`
+and provide the AMI ID `latest` in order to use the latest AMI tagged with the prefix `ami_tag`.
+This may be useful during development.
 
 ## Cloister commands
 

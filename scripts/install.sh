@@ -2,7 +2,7 @@
 echo 0 | sudo tee /proc/sys/kernel/randomize_va_space
 export LD_LIBRARY_PATH=/usr/local/lib
 sudo apt-get update
-yes Y | sudo apt-get install emacs git build-essential autoconf libtool pkg-config libgflags-dev libgtest-dev clang libc++-dev unzip libcurl4-openssl-dev htop zlib1g-dev python3.6-config python3.6-dev
+yes Y | sudo apt-get install git build-essential autoconf libtool pkg-config libgflags-dev libgtest-dev clang libc++-dev unzip libcurl4-openssl-dev htop zlib1g-dev 
 curl -sSf https://static.rust-lang.org/rustup.sh | sh
 rustup update stable
 sudo apt-get install llvm-6.0
@@ -31,7 +31,6 @@ make
 cd ~/weld
 git pull
 git checkout clamor
-git checkout 309c2672b0264f57fd2446e8d77e7d50503fc956
 echo "export CLAMOR_HOME=~/clamor" >> ~/.local_vars
 echo "export WELD_HOME=~/weld" >> ~/.local_vars
 echo "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:~/clamor/smalloc:~/clamor/clamor:~/weld/target/debug" >> ~/.local_vars

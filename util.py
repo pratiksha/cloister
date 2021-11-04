@@ -18,8 +18,8 @@ def dict_to_obj(instance, d):
 def worker_group_name(cluster_name):
     return cluster_name + '-workers'
 
-def master_group_name(cluster_name):
-    return cluster_name + '-master'
+def driver_group_name(cluster_name):
+    return cluster_name + '-driver'
 
 def parse_ami_date(date):
     fmtstr = '%Y-%m-%dT%H:%M:%S.%fZ'

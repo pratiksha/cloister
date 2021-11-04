@@ -65,12 +65,12 @@ def main():
             
     if action == 'login':
         try:
-            master_name = read_ips(conf.master_file)[0]
+            driver_name = read_ips(conf.driver_file)[0]
         except Exception as e:
-            print(e, 'Unable to read master IP file')
+            print(e, 'Unable to read driver IP file')
             exit(1)
             
-        login(master_name, conf.key_pair, conf.user)
+        login(driver_name, conf.key_pair, conf.user)
     elif action == 'login-ami':
         login(conf.ami_instance_ip, conf.key_pair, conf.user)
     elif action == 'launch':

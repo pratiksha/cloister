@@ -10,18 +10,18 @@ from instance import Instance
 from security_groups import SecurityGroup as SG
 
 class Cluster:
-    def __init__(self, client, master_nodes, worker_nodes,
-                 master_sgroup, worker_sgroup, name, conf, copy_dns=False):
+    def __init__(self, client, driver_nodes, worker_nodes,
+                 driver_sgroup, worker_sgroup, name, conf, copy_dns=False):
         self.client = client
-        self.master_nodes = master_nodes
+        self.driver_nodes = driver_nodes
         self.worker_nodes = worker_nodes
-        self.master_sgroup = master_sgroup
+        self.driver_sgroup = driver_sgroup
         self.worker_sgroup = worker_sgroup
         self.name = name
         self.conf = conf
 
-        Cluster.write_dns_names(self.master_nodes, 'servers/master.txt')
-        Cluster.write_dns_names(self.master_nodes, 'servers/manager.txt')
+        Cluster.write_dns_names(self.driver_nodes, 'servers/driver.txt')
+        Cluster.write_dns_names(self.driver_nodes, 'servers/manager.txt')
         Cluster.write_dns_names(self.worker_nodes, 'servers/servers.txt')
         Cluster.write_private_ips(self.worker_nodes, 'servers/servers_private.txt')
         Cluster.write_public_ips(self.worker_nodes, 'servers/servers_public.txt')
@@ -50,8 +50,8 @@ class Cluster:
             except:
                 continue
                 
-        # Master/manager may not have exactly the same timestamp
-        for instance in self.master_nodes:
+        # Driver/manager may not have exactly the same timestamp
+        for instance in self.driver_nodes:
             files = net_utils.run_cmdline(instance.public_dns_name,
                                           'ls ' + prefix + '*_' + timestamp + '\.log',
                                           self.conf.key_pair)
@@ -82,8 +82,8 @@ class Cluster:
             except:
                 continue
                 
-        # Master/manager may not have exactly the same timestamp
-        for instance in self.master_nodes:
+        # Driver/manager may not have exactly the same timestamp
+        for instance in self.driver_nodes:
             files = net_utils.run_cmdline(instance.public_dns_name,
                                           'rm -rf ' + prefix + '*_' + timestamp + '\.log',
                                           self.conf.key_pair)
@@ -103,8 +103,8 @@ class Cluster:
             except:
                 continue
                 
-        # Master/manager may not have exactly the same timestamp
-        for instance in self.master_nodes:
+        # Driver/manager may not have exactly the same timestamp
+        for instance in self.driver_nodes:
             files = net_utils.run_cmdline(instance.public_dns_name,
                                           'rm -rf ' + prefix + '*\.log',
                                           self.conf.key_pair)
@@ -115,7 +115,7 @@ class Cluster:
     def redeploy(self):
         folders = ['clamor/', 'weld/', 'cloister/', '.bashrc']
         idx = 0
-        for instance in self.master_nodes + self.worker_nodes:
+        for instance in self.driver_nodes + self.worker_nodes:
             if idx % 2 == 0:
                 time.sleep(3) # avoid ssh errors
             idx += 1
@@ -134,16 +134,16 @@ class Cluster:
             self.run_command(cmd % f)
             
     def run_command(self, command):
-        for instance in self.master_nodes + self.worker_nodes:
+        for instance in self.driver_nodes + self.worker_nodes:
             print(instance.public_dns_name)
             net_utils.run_cmdline_nonblock(instance.public_dns_name,
                                            command,
                                            self.conf.key_pair)
                 
     def copy_all_dns_names(self):
-        for instance in self.master_nodes + self.worker_nodes:
-            print('Copying master...')
-            net_utils.copy_file(instance, self.conf, 'servers/master.txt', '~/cloister/servers/master.txt', nonblock=True)
+        for instance in self.driver_nodes + self.worker_nodes:
+            print('Copying driver...')
+            net_utils.copy_file(instance, self.conf, 'servers/driver.txt', '~/cloister/servers/driver.txt', nonblock=True)
             print('Copying manager...')
             net_utils.copy_file(instance, self.conf, 'servers/manager.txt', '~/cloister/servers/manager.txt', nonblock=True)
             print('Copying servers...')
@@ -155,20 +155,20 @@ class Cluster:
             print('...done.')
 
     def copy_key(self):
-        for instance in self.master_nodes:
+        for instance in self.driver_nodes:
             net_utils.copy_file(instance, self.conf, self.conf.key_pair, '~/cloister/' + self.conf.key_pair)
 
     def copy_id_rsa(self):
         for instance in self.worker_nodes:
-            net_utils.copy_file(instance, self.conf, '/home/ubuntu/.ssh/id_rsa.pub', '~/cloister/master_key.pub')
+            net_utils.copy_file(instance, self.conf, '/home/ubuntu/.ssh/id_rsa.pub', '~/cloister/driver_key.pub')
             net_utils.run_cmdline(instance.public_dns_name,
-                                  "cat ~/cloister/master_key.pub >> ~/.ssh/authorized_keys",
+                                  "cat ~/cloister/driver_key.pub >> ~/.ssh/authorized_keys",
                                   self.conf.key_pair)
 
     def attach_swap(self):
-        swap_size = self.conf.swap_size_master
-        master_id = self.master_nodes[0].id
-        zone = self.master_nodes[0].placement['AvailabilityZone']
+        swap_size = self.conf.swap_size_driver
+        driver_id = self.driver_nodes[0].id
+        zone = self.driver_nodes[0].placement['AvailabilityZone']
         print(zone)
         volume = self.client.create_volume(
             AvailabilityZone=zone,
@@ -181,7 +181,7 @@ class Cluster:
             time.sleep(1)
             volume.reload()
             
-        response= self.master_nodes[0].attach_volume(
+        response= self.driver_nodes[0].attach_volume(
             Device='/dev/sdf',
             VolumeId=volume.id,
         )
@@ -189,10 +189,10 @@ class Cluster:
         print(response)
             
     @staticmethod
-    def run_instances(client, config, cluster_name, master=False):
+    def run_instances(client, config, cluster_name, driver=False):
         nworkers = 1
-        group_name = util.master_group_name(cluster_name)
-        if not master:
+        group_name = util.driver_group_name(cluster_name)
+        if not driver:
             nworkers = config.nworkers
             group_name = util.worker_group_name(cluster_name)
 
@@ -200,8 +200,8 @@ class Cluster:
         device_name = imgs[0].root_device_name
             
         sgroup = SG.get_or_create_group(client, group_name)
-        if master and config.master_instance_type:
-            instance_type = config.master_instance_type
+        if driver and config.driver_instance_type:
+            instance_type = config.driver_instance_type
         else:
             instance_type = config.instance_type
 
@@ -256,18 +256,18 @@ class Cluster:
                 
     @staticmethod
     def create_new_cluster(client, config, cluster_name):
-        (master_sgroup, master_nodes) = Cluster.run_instances(client, config, cluster_name, True)
+        (driver_sgroup, driver_nodes) = Cluster.run_instances(client, config, cluster_name, True)
         (worker_sgroup, worker_nodes) = Cluster.run_instances(client, config, cluster_name, False)
-        return Cluster(client, master_nodes, worker_nodes,
-                       master_sgroup, worker_sgroup, cluster_name, config, copy_dns=True)
+        return Cluster(client, driver_nodes, worker_nodes,
+                       driver_sgroup, worker_sgroup, cluster_name, config, copy_dns=True)
         
     @staticmethod
     def get_cluster_if_exists(client, config, cluster_name):
         print("Searching for existing cluster " + cluster_name + "...")
         instances = client.instances.all()
-        master_nodes = []
+        driver_nodes = []
         worker_nodes = []
-        master_sgroup = SG.get_or_create_group(client, util.master_group_name(cluster_name))
+        driver_sgroup = SG.get_or_create_group(client, util.driver_group_name(cluster_name))
         worker_sgroup = SG.get_or_create_group(client, util.worker_group_name(cluster_name))
 
         print(list(x.state for x in instances))
@@ -275,20 +275,20 @@ class Cluster:
         for i in active_instances:
             print(i.security_groups)
             group_names = [x['GroupName'] for x in i.security_groups]
-            if master_sgroup.group_name in group_names:
-                master_nodes.append(i)
+            if driver_sgroup.group_name in group_names:
+                driver_nodes.append(i)
             elif worker_sgroup.group_name in group_names:
                 worker_nodes.append(i)
-        if any((master_nodes, worker_nodes)):
-            print ("Found %d master(s), %d workers" %
-                   (len(master_nodes), len(worker_nodes)))
-        if (master_nodes != [] and worker_nodes != []):
-            return Cluster(client, master_nodes, worker_nodes,
-                           master_sgroup, worker_sgroup, cluster_name, config, copy_dns=False)
+        if any((driver_nodes, worker_nodes)):
+            print ("Found %d driver(s), %d workers" %
+                   (len(driver_nodes), len(worker_nodes)))
+        if (driver_nodes != [] and worker_nodes != []):
+            return Cluster(client, driver_nodes, worker_nodes,
+                           driver_sgroup, worker_sgroup, cluster_name, config, copy_dns=False)
         else:
-            if master_nodes == [] and worker_nodes != []:
-                print("ERROR: Could not find master in group " + cluster_name + "-master")
-            elif master_nodes != [] and worker_nodes == []:
+            if driver_nodes == [] and worker_nodes != []:
+                print("ERROR: Could not find driver in group " + cluster_name + "-driver")
+            elif driver_nodes != [] and worker_nodes == []:
                 print("ERROR: Could not find workers in group " + cluster_name + "-workers")
             else:
                 print("ERROR: Could not find any existing cluster")
@@ -297,19 +297,19 @@ class Cluster:
     def destroy(self):
         print('Terminating...')
 
-        [x.terminate() for x in self.master_nodes + self.worker_nodes]
+        [x.terminate() for x in self.driver_nodes + self.worker_nodes]
 
         # wait for instances to terminate
-        states = ([x.state['Name'] for x in self.master_nodes + self.worker_nodes])
+        states = ([x.state['Name'] for x in self.driver_nodes + self.worker_nodes])
         while any([x.state['Name'] in Instance.active_states + Instance.waiting_states
-                   for x in self.master_nodes + self.worker_nodes]):
-            print([x.state for x in self.master_nodes + self.worker_nodes])
+                   for x in self.driver_nodes + self.worker_nodes]):
+            print([x.state for x in self.driver_nodes + self.worker_nodes])
             time.sleep(10)
-            [x.reload() for x in self.master_nodes + self.worker_nodes]
+            [x.reload() for x in self.driver_nodes + self.worker_nodes]
 
         print('done.')
-        SG.revoke(self.master_sgroup, self.client)
+        SG.revoke(self.driver_sgroup, self.client)
         SG.revoke(self.worker_sgroup, self.client)
 
-        self.master_sgroup.delete()
+        self.driver_sgroup.delete()
         self.worker_sgroup.delete()

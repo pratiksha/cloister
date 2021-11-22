@@ -1,5 +1,6 @@
 from optparse import OptionParser
 
+import copy
 import json
 import subprocess
 
@@ -8,6 +9,10 @@ import boto3
 from cluster import Cluster
 from config import CloisterConfig
 from security_groups import SecurityGroup
+
+from net_utils import read_config
+
+default_config_file = 'configs/cost_config.json'
 
 '''
 T3.micro has 2 CPUs and 0.5 GB of memory
@@ -19,50 +24,73 @@ input data spec:
 '''
 
 class Dataset:
-    def __init__(self, location, npartitions, size):
+    def __init__(self, location, npartitions, datatype, size):
         self.location = location
         self.npartitions = npartitions
-        self.size = size # in GB
+        self.datatype = datatype
+        self.size = size # in number of elements
 
 class CloudFunction:
-    def __init__(self, config, input_spec, output_spec):
-        self.config = config
-        self.input_spec = input_spec
-        self.output_spec = output_spec
+    def __init__(self, base_config, script):
+        self.script = script
+        self.base_config = base_config
 
     def compute_configuration(self):
         pass
 
-    def run(self):
+    def run(self, input_spec, output_spec, client):
         ## launch cluster
         ## adjust the number of workers based on input_spec
-        new_config = compute_map_configuration(config, input_spec) # should return config with correct instance type and number of workers?
-
+        config = self.compute_configuration(input_spec) # should return config with correct instance type and number of workers?
+        print(config)
+        
         cluster = Cluster.get_cluster_if_exists(client, config, config.cluster_name)
         if cluster is None:
             cluster = Cluster.create_new_cluster(client, config, config.cluster_name)
 
-        ## load data
-        cluster.load_data(input_spec)
+        ## load scripts
+        ## TODO this is a hack
+        cluster.copy_map_script()
 
         ## run map and save result
-        cluster.run_function(script, output_dir)
+        ## run a binary that loads data from s3 (or local) and runs some function
+        ## and save result to s3
+        cmdline = self.script + " " + input_spec.location + " " + output_spec.location
+        output_size = cluster.run_command(cmdline)
 
         ## tear down cluster
+        cluster.destroy()
 
+        output_spec.size = int(output_size)
+        return output_spec
 
-def MapFunction(CloudFunction):
+class MapFunction(CloudFunction):
+    def __init__(self, base_config, script):
+        super().__init__(base_config, script)
+    
     ## this is where we figure out how many workers to launch for map
-    def compute_configuration(self):
-        pass
-        
+    def compute_configuration(self, input_spec):
+        ret_config = copy.copy(self.base_config)
+        ret_config.master_instance_type = 'm5.4xlarge'
+        ret_config.instance_type = 'm5.4xlarge'
+        ret_config.nworkers = 1
+        return ret_config
+
+def cluster_map(base_config, client):
+    input_spec = Dataset('s3://weld-dsm-east/ints-tiny.csv',
+                         1, int, 100)
+    output_spec = Dataset('s3://weld-dsm-east/tiny-output.csv',
+                         1, int, 100)
+    func = MapFunction(base_config, '~/map.sh')
+    func.run(input_spec, output_spec, client)
+    
 def main():
     parser = OptionParser()
     parser.add_option('-c', '--config_file', type=str,
                       help='Cloister configuration file name')
     parser.add_option('-l', '--cluster_label', type=str,
                       help='Cluster name override')
-
+    
     (opts, args) = parser.parse_args()
 
     conf_file = default_config_file
@@ -82,9 +110,7 @@ def main():
         except AttributeError as e:
             conf.get_latest_clamor_ami(client)
 
-    input_spec = None
-    output_spec = None
-    cluster_map(conf, input_spec, output_spec)
+    cluster_map(conf, client)
 
 if __name__ == '__main__':
     main()

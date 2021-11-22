@@ -28,7 +28,7 @@ class Cluster:
 
         if copy_dns:
             self.copy_all_dns_names()
-            self.copy_key()
+            #self.copy_key()
 
     def download_logs(self, bench_name, timestamp):
         folder_name = 'logs_' + bench_name + '_' + timestamp + '/'
@@ -140,11 +140,14 @@ class Cluster:
             self.run_command(cmd)
             
     def run_command(self, command):
+        outputs = []
         for instance in self.master_nodes + self.worker_nodes:
             print(instance.public_dns_name)
-            net_utils.run_cmdline_nonblock(instance.public_dns_name,
+            output = net_utils.run_cmdline(instance.public_dns_name,
                                            command,
                                            self.conf.key_pair)
+            outputs.append(output)
+        return outputs
                 
     def copy_all_dns_names(self):
         for instance in self.master_nodes + self.worker_nodes:
@@ -171,6 +174,11 @@ class Cluster:
                                   "cat ~/cloister/master_key.pub >> ~/.ssh/authorized_keys",
                                   self.conf.key_pair)
 
+    def copy_map_script(self):
+        for instance in self.worker_nodes:
+            net_utils.copy_file(instance, self.conf, 'cost_experiments/map/map.sh', '~/map.sh')
+            net_utils.copy_file(instance, self.conf, 'cost_experiments/map/map.py', '~/map.py')
+            
     def attach_swap(self):
         swap_size = self.conf.swap_size_master
         master_id = self.master_nodes[0].id
